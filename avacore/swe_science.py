@@ -242,6 +242,8 @@ class PierGenerate(GenerateFunction[Sample]):
             ]
             if self.skip_pull:
                 command.append("--skip-pull")
+            if self.agent == "mini-swe-agent":
+                command.extend(["--agent-import-path", "scripts.pier_adapters:ScienceBenchMini"])
             command_text = shlex.join(command)
             environment = os.environ.copy()
             environment["PYTHONPATH"] = os.pathsep.join(

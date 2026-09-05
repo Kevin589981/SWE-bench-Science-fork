@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 from pier.agents.installed.codex import Codex
+from pier.agents.installed.mini_swe_agent import MiniSweAgent
+from pier.models.agent.install import AgentInstallSpec, InstallStep
 
 
 class ScienceBenchCodex(Codex):
@@ -17,3 +19,20 @@ class ScienceBenchCodex(Codex):
                 "npm install -g --include=optional @openai/codex",
             )
         return spec
+
+
+class ScienceBenchMini(MiniSweAgent):
+    """Use a prebuilt mini-swe-agent image in offline task environments."""
+
+    def install_spec(self):
+        return AgentInstallSpec(
+            agent_name=self.name(),
+            version=self._version,
+            steps=[
+                InstallStep(
+                    user="root",
+                    run="command -v mini-swe-agent >/dev/null",
+                )
+            ],
+            verification_command=self.get_version_command(),
+        )
