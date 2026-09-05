@@ -39,7 +39,7 @@ def _allow_dynamic_destination_ports(script_path: Path):
             "filtered-egress policy"
         )
     script_path.write_text(text, encoding="utf-8")
-    return path
+    return script_path
 
 
 def _patch_pier() -> None:
