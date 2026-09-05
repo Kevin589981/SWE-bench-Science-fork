@@ -17,6 +17,7 @@ import asyncio
 import json
 import os
 import shlex
+import shutil
 import sys
 import tempfile
 from dataclasses import replace
@@ -164,12 +165,14 @@ class PierGenerate(GenerateFunction[Sample]):
         jobs_root: Path,
         timeout_multiplier: float,
         skip_pull: bool,
+        pier_bin: str,
     ) -> None:
         self.model = model
         self.repo_root = repo_root
         self.jobs_root = jobs_root
         self.timeout_multiplier = timeout_multiplier
         self.skip_pull = skip_pull
+        self.pier_bin = pier_bin
 
     async def __call__(self, instance: Sample, *, sampling_params: dict[str, Any] = {}, **kwargs: Any) -> Trace:
         task_dir = Path(instance["task_dir"])
@@ -218,6 +221,8 @@ class PierGenerate(GenerateFunction[Sample]):
                 job_name,
                 "--platform",
                 "linux/amd64",
+                "--pier-bin",
+                self.pier_bin,
             ]
             if self.skip_pull:
                 command.append("--skip-pull")
@@ -356,6 +361,7 @@ async def async_main(args: argparse.Namespace) -> int:
         jobs_root=jobs_root,
         timeout_multiplier=args.agent_timeout_multiplier,
         skip_pull=args.skip_pull,
+        pier_bin=args.pier_bin,
     )
     store = PostgresBackend(args.postgres)
 
@@ -405,7 +411,7 @@ async def async_main(args: argparse.Namespace) -> int:
                     "successful_rollouts": progress.successful,
                     "errors": len(progress.failed),
                     "score": progress.score,
-                    "export": args.export,
+                    "export": str(args.export) if args.export else None,
                 },
                 ensure_ascii=False,
             )
@@ -435,6 +441,7 @@ def main() -> int:
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--error-tolerance", type=float, default=0.01)
     parser.add_argument("--skip-pull", action="store_true")
+    parser.add_argument("--pier-bin", default=shutil.which("pier") or "/root/.local/bin/pier")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     if not args.postgres:
