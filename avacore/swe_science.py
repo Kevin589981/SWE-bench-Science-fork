@@ -447,7 +447,13 @@ async def async_main(args: argparse.Namespace) -> int:
         )
         return 0
     finally:
-        await http.aclose()
+        try:
+            await http.aclose()
+        except RuntimeError as exc:
+            # AvaCore's store context can close the loop before a long-lived
+            # provider connection is released. The rollout is already durable.
+            if "Event loop is closed" not in str(exc):
+                raise
 
 
 def main() -> int:
