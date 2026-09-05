@@ -191,7 +191,7 @@ class PierGenerate(GenerateFunction[Sample]):
                         "MODEL=proxy",
                         "OPENAI_API_KEY=avacore-proxy",
                         f"CODEX_BASE_URL={(proxy.endpoint / 'v1').url}",
-                        "CODEX_WIRE_API=chat",
+                        "CODEX_WIRE_API=responses",
                         "CODEX_VERSION=latest",
                     ]
                 )
