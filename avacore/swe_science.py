@@ -165,6 +165,7 @@ class PierGenerate(GenerateFunction[Sample]):
         jobs_root: Path,
         run_name: str,
         agent: str,
+        runtime_tasks_path: Path | None,
         proxy_port: int,
         timeout_multiplier: float,
         skip_pull: bool,
@@ -175,6 +176,7 @@ class PierGenerate(GenerateFunction[Sample]):
         self.jobs_root = jobs_root
         self.run_name = run_name
         self.agent = agent
+        self.runtime_tasks_path = runtime_tasks_path
         self.proxy_port = proxy_port
         self.timeout_multiplier = timeout_multiplier
         self.skip_pull = skip_pull
@@ -182,6 +184,8 @@ class PierGenerate(GenerateFunction[Sample]):
 
     async def __call__(self, instance: Sample, *, sampling_params: dict[str, Any] = {}, **kwargs: Any) -> Trace:
         task_dir = Path(instance["task_dir"])
+        if self.runtime_tasks_path is not None:
+            task_dir = self.runtime_tasks_path / task_dir.name
         task_id = str(instance["task_id"])
         job_name = f"{self.run_name}-{task_id}-{os.getpid()}"
         task_jobs = self.jobs_root / job_name
@@ -380,6 +384,7 @@ async def async_main(args: argparse.Namespace) -> int:
         jobs_root=jobs_root,
         run_name=args.run_name,
         agent=args.agent,
+        runtime_tasks_path=(Path(args.runtime_tasks_path).resolve() if args.runtime_tasks_path else None),
         proxy_port=args.proxy_port,
         timeout_multiplier=args.agent_timeout_multiplier,
         skip_pull=args.skip_pull,
@@ -406,6 +411,7 @@ async def async_main(args: argparse.Namespace) -> int:
                 "agent": args.agent,
                 "repo_root": str(repo_root),
                 "tasks_path": str(Path(args.tasks_path).resolve()),
+                "runtime_tasks_path": str(Path(args.runtime_tasks_path).resolve()) if args.runtime_tasks_path else None,
                 "agent_timeout_multiplier": args.agent_timeout_multiplier,
                 "skip_pull": args.skip_pull,
             },
@@ -448,6 +454,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).parents[1])
     parser.add_argument("--tasks-path", type=Path, default=Path("huggingface/tasks"))
+    parser.add_argument(
+        "--runtime-tasks-path",
+        type=Path,
+        help="Optional execution copy; instances keep the canonical --tasks-path identity.",
+    )
     parser.add_argument("--task-id", action="append", help="Task ID, repeatable; default is every bundle in --tasks-path.")
     parser.add_argument("--env-file", type=Path, help="Model dotenv file, for example /root/scicode-avacore/.env-run")
     parser.add_argument("--base-url")
