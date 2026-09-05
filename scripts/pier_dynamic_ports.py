@@ -12,14 +12,14 @@ from __future__ import annotations
 
 import importlib
 import re
+from pathlib import Path
 
 
 _PORT_RANGE = "1024-65535"
 
 
-def _allow_dynamic_destination_ports(path):
-    path = path.__class__(path)
-    script_path = path.parent / "start-squid.sh"
+def _allow_dynamic_destination_ports(script_path: Path):
+    script_path = Path(script_path)
     text = script_path.read_text(encoding="utf-8")
     text, ssl_count = re.subn(
         r"^acl SSL_ports port 443$",
@@ -48,7 +48,12 @@ def _patch_pier() -> None:
     original = setup.write_docker_proxy_compose
 
     def wrapped(*args, **kwargs):
-        return _allow_dynamic_destination_ports(original(*args, **kwargs))
+        compose_path = original(*args, **kwargs)
+        proxy_dir = kwargs.get("proxy_dir")
+        if proxy_dir is None:
+            raise RuntimeError("Pier did not provide the egress proxy directory")
+        _allow_dynamic_destination_ports(Path(proxy_dir) / "start-squid.sh")
+        return compose_path
 
     # docker.py imports this function directly, so patch both module bindings.
     setup.write_docker_proxy_compose = wrapped
