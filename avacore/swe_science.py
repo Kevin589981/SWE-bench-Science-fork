@@ -42,7 +42,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
 
 
 COLLECTION = "swe_bench_science"
-COLLECTION_VERSION = 1
+COLLECTION_VERSION = 2
 
 
 def parse_dotenv(path: Path) -> dict[str, str]:
@@ -163,6 +163,7 @@ class PierGenerate(GenerateFunction[Sample]):
         *,
         repo_root: Path,
         jobs_root: Path,
+        run_name: str,
         timeout_multiplier: float,
         skip_pull: bool,
         pier_bin: str,
@@ -170,6 +171,7 @@ class PierGenerate(GenerateFunction[Sample]):
         self.model = model
         self.repo_root = repo_root
         self.jobs_root = jobs_root
+        self.run_name = run_name
         self.timeout_multiplier = timeout_multiplier
         self.skip_pull = skip_pull
         self.pier_bin = pier_bin
@@ -177,7 +179,7 @@ class PierGenerate(GenerateFunction[Sample]):
     async def __call__(self, instance: Sample, *, sampling_params: dict[str, Any] = {}, **kwargs: Any) -> Trace:
         task_dir = Path(instance["task_dir"])
         task_id = str(instance["task_id"])
-        job_name = f"{instance['run_name']}-{task_id}-{os.getpid()}"
+        job_name = f"{self.run_name}-{task_id}-{os.getpid()}"
         task_jobs = self.jobs_root / job_name
         task_jobs.mkdir(parents=True, exist_ok=True)
 
@@ -269,7 +271,10 @@ class PierReward(RewardFunction[Sample]):
     reference_type = Sample
 
     async def evaluate(self, trace: Trace, reference: Sample) -> Reward:
-        job_dir = Path(trace.metadata.get("pier", {}).get("job_dir", reference["job_dir"]))
+        job_path = trace.metadata.get("pier", {}).get("job_dir")
+        if not isinstance(job_path, str):
+            raise ValueError("AvaCore trace is missing the Pier job directory")
+        job_dir = Path(job_path)
         reward_path = _first_file(job_dir, "reward.json")
         payload = _read_json(reward_path)
         score = _numeric_reward(payload)
@@ -297,7 +302,6 @@ def schema():
             "base_commit": FieldSpec("text"),
             "environment_image": FieldSpec("text"),
             "verifier_image": FieldSpec("text"),
-            "run_name": FieldSpec("text"),
         },
         preview="task_id",
     )
@@ -347,8 +351,6 @@ async def async_main(args: argparse.Namespace) -> int:
         Sample(
             task
             | {
-                "run_name": args.run_name,
-                "job_dir": str(jobs_root),
                 "benchmark": COLLECTION,
             },
             key=lambda row: row["id"],
@@ -359,6 +361,7 @@ async def async_main(args: argparse.Namespace) -> int:
         model,
         repo_root=repo_root,
         jobs_root=jobs_root,
+        run_name=args.run_name,
         timeout_multiplier=args.agent_timeout_multiplier,
         skip_pull=args.skip_pull,
         pier_bin=args.pier_bin,
