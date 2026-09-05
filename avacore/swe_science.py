@@ -191,9 +191,10 @@ class PierGenerate(GenerateFunction[Sample]):
             self.model, host="0.0.0.0", port=self.proxy_port, sampling_params=sampling_params
         ) as proxy:
             profile = task_jobs / "provider.env"
+            agent_model = "openai/proxy" if self.agent == "mini-swe-agent" else "proxy"
             if self.agent == "codex":
                 provider_env = [
-                    "MODEL=proxy",
+                    f"MODEL={agent_model}",
                     "OPENAI_API_KEY=avacore-proxy",
                     f"CODEX_BASE_URL={(proxy.endpoint / 'v1').url}",
                     "CODEX_WIRE_API=responses",
@@ -201,7 +202,7 @@ class PierGenerate(GenerateFunction[Sample]):
                 ]
             elif self.agent == "mini-swe-agent":
                 provider_env = [
-                    "MODEL=proxy",
+                    f"MODEL={agent_model}",
                     "OPENAI_API_KEY=avacore-proxy",
                     f"OPENAI_BASE_URL={(proxy.endpoint / 'v1').url}",
                 ]
@@ -222,7 +223,7 @@ class PierGenerate(GenerateFunction[Sample]):
                 "--env-file",
                 str(profile),
                 "--model",
-                "proxy",
+                agent_model,
                 "--n-concurrent",
                 "1",
                 "--n-attempts",
