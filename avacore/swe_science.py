@@ -164,6 +164,7 @@ class PierGenerate(GenerateFunction[Sample]):
         repo_root: Path,
         jobs_root: Path,
         run_name: str,
+        agent: str,
         proxy_port: int,
         timeout_multiplier: float,
         skip_pull: bool,
@@ -173,6 +174,7 @@ class PierGenerate(GenerateFunction[Sample]):
         self.repo_root = repo_root
         self.jobs_root = jobs_root
         self.run_name = run_name
+        self.agent = agent
         self.proxy_port = proxy_port
         self.timeout_multiplier = timeout_multiplier
         self.skip_pull = skip_pull
@@ -189,16 +191,24 @@ class PierGenerate(GenerateFunction[Sample]):
             self.model, host="0.0.0.0", port=self.proxy_port, sampling_params=sampling_params
         ) as proxy:
             profile = task_jobs / "provider.env"
+            if self.agent == "codex":
+                provider_env = [
+                    "MODEL=proxy",
+                    "OPENAI_API_KEY=avacore-proxy",
+                    f"CODEX_BASE_URL={(proxy.endpoint / 'v1').url}",
+                    "CODEX_WIRE_API=responses",
+                    "CODEX_VERSION=latest",
+                ]
+            elif self.agent == "mini-swe-agent":
+                provider_env = [
+                    "MODEL=proxy",
+                    "OPENAI_API_KEY=avacore-proxy",
+                    f"OPENAI_BASE_URL={(proxy.endpoint / 'v1').url}",
+                ]
+            else:
+                raise ValueError(f"unsupported AvaCore agent: {self.agent}")
             profile.write_text(
-                "\n".join(
-                    [
-                        "MODEL=proxy",
-                        "OPENAI_API_KEY=avacore-proxy",
-                        f"CODEX_BASE_URL={(proxy.endpoint / 'v1').url}",
-                        "CODEX_WIRE_API=responses",
-                        "CODEX_VERSION=latest",
-                    ]
-                )
+                "\n".join(provider_env)
                 + "\n",
                 encoding="utf-8",
             )
@@ -208,7 +218,7 @@ class PierGenerate(GenerateFunction[Sample]):
                 "--path",
                 str(task_dir),
                 "--agent",
-                "codex",
+                self.agent,
                 "--env-file",
                 str(profile),
                 "--model",
@@ -366,6 +376,7 @@ async def async_main(args: argparse.Namespace) -> int:
         repo_root=repo_root,
         jobs_root=jobs_root,
         run_name=args.run_name,
+        agent=args.agent,
         proxy_port=args.proxy_port,
         timeout_multiplier=args.agent_timeout_multiplier,
         skip_pull=args.skip_pull,
@@ -389,6 +400,7 @@ async def async_main(args: argparse.Namespace) -> int:
             trials=1,
             config={
                 "adapter": "swe_science_avacore",
+                "agent": args.agent,
                 "repo_root": str(repo_root),
                 "tasks_path": str(Path(args.tasks_path).resolve()),
                 "agent_timeout_multiplier": args.agent_timeout_multiplier,
@@ -440,6 +452,12 @@ def main() -> int:
     parser.add_argument("--model")
     parser.add_argument("--postgres", default=os.environ.get("POSTGRES", ""))
     parser.add_argument("--run-name", default="swe-science-avacore-smoke")
+    parser.add_argument(
+        "--agent",
+        choices=("codex", "mini-swe-agent"),
+        default="codex",
+        help="Pier agent to run inside the official task environment.",
+    )
     parser.add_argument("--jobs-dir", type=Path, default=Path("jobs-avacore"))
     parser.add_argument("--export", type=Path)
     parser.add_argument("--concurrency", type=int, default=1)
