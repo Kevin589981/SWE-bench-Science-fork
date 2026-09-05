@@ -164,6 +164,7 @@ class PierGenerate(GenerateFunction[Sample]):
         repo_root: Path,
         jobs_root: Path,
         run_name: str,
+        proxy_port: int,
         timeout_multiplier: float,
         skip_pull: bool,
         pier_bin: str,
@@ -172,6 +173,7 @@ class PierGenerate(GenerateFunction[Sample]):
         self.repo_root = repo_root
         self.jobs_root = jobs_root
         self.run_name = run_name
+        self.proxy_port = proxy_port
         self.timeout_multiplier = timeout_multiplier
         self.skip_pull = skip_pull
         self.pier_bin = pier_bin
@@ -183,7 +185,9 @@ class PierGenerate(GenerateFunction[Sample]):
         task_jobs = self.jobs_root / job_name
         task_jobs.mkdir(parents=True, exist_ok=True)
 
-        async with OpenAIProxy(self.model, host="0.0.0.0", sampling_params=sampling_params) as proxy:
+        async with OpenAIProxy(
+            self.model, host="0.0.0.0", port=self.proxy_port, sampling_params=sampling_params
+        ) as proxy:
             profile = task_jobs / "provider.env"
             profile.write_text(
                 "\n".join(
@@ -362,6 +366,7 @@ async def async_main(args: argparse.Namespace) -> int:
         repo_root=repo_root,
         jobs_root=jobs_root,
         run_name=args.run_name,
+        proxy_port=args.proxy_port,
         timeout_multiplier=args.agent_timeout_multiplier,
         skip_pull=args.skip_pull,
         pier_bin=args.pier_bin,
@@ -445,6 +450,12 @@ def main() -> int:
     parser.add_argument("--error-tolerance", type=float, default=0.01)
     parser.add_argument("--skip-pull", action="store_true")
     parser.add_argument("--pier-bin", default=shutil.which("pier") or "/root/.local/bin/pier")
+    parser.add_argument(
+        "--proxy-port",
+        type=int,
+        default=443,
+        help="Host port for AvaCore's proxy; Pier's filtered egress allows HTTP ports 80/443.",
+    )
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     if not args.postgres:
