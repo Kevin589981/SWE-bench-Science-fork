@@ -39,13 +39,20 @@ agent options are:
 --agent mini-swe-agent \
 --runtime-tasks-path /root/scicode-avacore/runtime-tasks-mini \
 --agent-timeout-multiplier 0.0055556 \
---proxy-port 443
+--proxy-port 0
 ```
 
 `mini-swe-agent` uses the standard `OPENAI_BASE_URL` Chat Completions route;
 the AvaCore `OpenAIProxy` still forwards to the configured model and records
 the model/tool messages and per-response usage metadata. The Codex route remains
 available with `--agent codex` and uses the Responses wire protocol.
+
+With the default `--proxy-port 0`, AvaCore allocates an isolated ephemeral
+port for each rollout. The adapter invokes `scripts/pier_dynamic_ports.sh`,
+which keeps Pier's authenticated domain allowlist but permits those dynamic
+destination ports in the generated Squid policy. Pass `--pier-bin` explicitly
+to use a site-managed Pier executable; in that case the deployment must provide
+an equivalent filtered-egress policy for the chosen AvaCore port.
 
 The PostgreSQL record can be exported later with AvaCore's normal command:
 

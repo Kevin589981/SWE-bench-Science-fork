@@ -17,7 +17,6 @@ import asyncio
 import json
 import os
 import shlex
-import shutil
 import sys
 import tempfile
 from dataclasses import replace
@@ -378,6 +377,7 @@ async def async_main(args: argparse.Namespace) -> int:
         )
         for task in tasks
     ]
+    pier_bin = args.pier_bin or str(repo_root / "scripts" / "pier_dynamic_ports.sh")
     generate = PierGenerate(
         model,
         repo_root=repo_root,
@@ -388,7 +388,7 @@ async def async_main(args: argparse.Namespace) -> int:
         proxy_port=args.proxy_port,
         timeout_multiplier=args.agent_timeout_multiplier,
         skip_pull=args.skip_pull,
-        pier_bin=args.pier_bin,
+        pier_bin=pier_bin,
     )
     store = PostgresBackend(args.postgres)
 
@@ -414,6 +414,8 @@ async def async_main(args: argparse.Namespace) -> int:
                 "runtime_tasks_path": str(Path(args.runtime_tasks_path).resolve()) if args.runtime_tasks_path else None,
                 "agent_timeout_multiplier": args.agent_timeout_multiplier,
                 "skip_pull": args.skip_pull,
+                "proxy_port": args.proxy_port,
+                "pier_bin": pier_bin,
             },
             schema=schema(),
             resume=args.resume,
@@ -487,12 +489,15 @@ def main() -> int:
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--error-tolerance", type=float, default=0.01)
     parser.add_argument("--skip-pull", action="store_true")
-    parser.add_argument("--pier-bin", default=shutil.which("pier") or "/root/.local/bin/pier")
+    parser.add_argument(
+        "--pier-bin",
+        help="Pier executable; defaults to the repository wrapper that permits AvaCore's dynamic proxy ports.",
+    )
     parser.add_argument(
         "--proxy-port",
         type=int,
-        default=443,
-        help="Host port for AvaCore's proxy; Pier's filtered egress allows HTTP ports 80/443.",
+        default=0,
+        help="Host port for AvaCore's proxy; 0 allocates an isolated ephemeral port per rollout.",
     )
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
