@@ -7,18 +7,24 @@ recording and serving: its `OpenAIProxy` captures the complete agent/tool
 conversation, `RolloutEngine` controls concurrent rollouts, and
 `PostgresBackend` stores traces and rewards for AvaVisualizer.
 
-From the repository root on yicloud:
+On yicloud, keep the SWE-bench Science project separate from the SciCode
+project. The shared AvaCore installation remains under `/root/scicode-avacore`,
+while this repository and its task material live under
+`/root/swe-bench-science-avacore`:
 
 ```bash
+export SWE_BENCH_ROOT=/root/swe-bench-science-avacore
+export AVACORE_ROOT=/root/scicode-avacore
 export POSTGRES='postgresql://avacore:avacore-local-test@127.0.0.1:55432/avacore'
-/root/scicode-avacore/AvaCore/.venv/bin/python avacore/swe_science.py \
-  --tasks-path huggingface/tasks \
+cd "$SWE_BENCH_ROOT/SWE-bench-Science-fork"
+"$AVACORE_ROOT/AvaCore/.venv/bin/python" avacore/swe_science.py \
+  --tasks-path "$SWE_BENCH_ROOT/SWE-bench-Science-fork/huggingface/tasks" \
   --task-id 002 \
-  --env-file /root/scicode-avacore/.env-run \
+  --env-file "$AVACORE_ROOT/.env-run" \
   --postgres "$POSTGRES" \
   --run-name swe-science-nex-30s-task002 \
-  --jobs-dir /root/scicode-avacore/runs/swe-science-nex-30s-task002/jobs \
-  --export /root/scicode-avacore/runs/swe-science-nex-30s-task002/rollouts.jsonl
+  --jobs-dir "$SWE_BENCH_ROOT/runs/swe-science-nex-30s-task002/jobs" \
+  --export "$SWE_BENCH_ROOT/runs/swe-science-nex-30s-task002/rollouts.jsonl"
 ```
 
 The default agent-stage multiplier is `0.0055556`, approximately 30 seconds
@@ -37,7 +43,7 @@ agent options are:
 
 ```bash
 --agent mini-swe-agent \
---runtime-tasks-path /root/scicode-avacore/runtime-tasks-mini \
+--runtime-tasks-path /root/swe-bench-science-avacore/runtime-tasks-mini \
 --agent-timeout-multiplier 0.0055556 \
 --proxy-port 0
 ```
